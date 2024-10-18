@@ -5,17 +5,17 @@ An general-purpose lossless compressor via Stepwise-parallel and Learning-based 
 ## Regular
 ```
 # Compression
-python compress.py <file> <file>.mz --prefix <temp>
+python compress.py <file> <file>.mz
 # Decompression
-python decompress.py <file>.mz <output>.mz.out --prefix <temp>
+python decompress.py <file>.mz <output>.mz.out
 ```
 
 ## Stepwise-parallel
 ```
 # Compression
-bash sp-compress.sh <file> <file>.mz <prefix>
+bash sp-compress.sh <file> <file>.mz
 # Decompression
-bash sp-decompress.sh <file>.mz <file>.mz.out <prefix>
+bash sp-decompress.sh <file>.mz <file>.mz.out
 ```
 
 # Dataset
