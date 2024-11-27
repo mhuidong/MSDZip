@@ -29,7 +29,7 @@ def parseArgs(argv):
     parser.add_argument('--vocab_size', type=int, default=256, help='The size of vocab.')
     parser.add_argument('--hidden_dim', type=int, default=256, help='The dimension of hidden layer.')
     parser.add_argument('--ffn_dim', type=int, default=4096, help='The dimension of ffn layer.')
-    parser.add_argument('--layers', type=int, default=2, help='The number of layers.')
+    parser.add_argument('--layers', type=int, default=5, help='The number of layers.')
     parser.add_argument('--seed', type=int, default=0, help='Random seeds.')
     parser.add_argument('--save', action='store_true', help='Save the model')
     parser.add_argument('--load', action='store_true', help='Load the model')
