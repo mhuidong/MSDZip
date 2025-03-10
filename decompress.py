@@ -10,7 +10,7 @@ import arithmeticcoding_fast
 from utils import *
 
 torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = False
 
 
 def parseArgs(argv):
@@ -32,6 +32,7 @@ def parseArgs(argv):
     parser.add_argument('--ffn_dim', type=int, default=4096, help='The dimension of ffn layer.')
     parser.add_argument('--layers', type=int, default=5, help='The number of layers.')
     parser.add_argument('--seed', type=int, default=0, help='Random seeds.')
+    parser.add_argument('--sp', action='store_true', help='Stepwise-parallel')
     parser.add_argument('--save', action='store_true', help='Save the model')
     parser.add_argument('--load', action='store_true', help='Load the model')
     parser.add_argument('--ratio', type=float, default=0.05, help='Pretrain ratio.')
@@ -40,7 +41,7 @@ def parseArgs(argv):
 
 def decompress(args, temp_file, info, last):
     bs, ts = args.batchsize, args.timesteps
-    len_series, id2char_dict, vocab_size = info[args.prefix + '.' + args.index], info['id2char_dict'], args.vocab_size
+    len_series, id2char_dict, vocab_size = info[args.sub_prefix], info['id2char_dict'], args.vocab_size
 
 
     iter_num = (len_series - ts) // bs      # 10439
@@ -141,8 +142,15 @@ def main(args):
         filename = os.path.basename(args.input)
         args.prefix = filename.split('.')[0]
 
+    if args.sp:
+        args.sub_prefix = args.prefix + '.' + args.index
+    else:
+        args.sub_prefix = args.prefix
+
     if not args.tempdir:
-        args.tempdir = "{}_bs{}_ts{}_v{}_h{}_f{}_l{}".format(args.prefix+'.'+args.index, args.batchsize, args.timesteps, args.vocab_dim, args.hidden_dim, args.ffn_dim, args.layers)
+        args.tempdir = "{}_bs{}_ts{}_v{}_h{}_f{}_l{}".format(args.sub_prefix, args.batchsize, args.timesteps, args.vocab_dim, args.hidden_dim, args.ffn_dim, args.layers)
+
+
     # args.timesteps = args.timesteps * (args.hidden_dim // args.vocab_dim)
     if os.path.exists(args.tempdir):
         shutil.rmtree(args.tempdir)
@@ -166,10 +174,10 @@ def main(args):
     f_out.close()
     f.close()
 
-    if (params[args.prefix + '.' + args.index] - args.timesteps) % args.batchsize == 0:
+    if (params[args.sub_prefix] - args.timesteps) % args.batchsize == 0:
         decompress(args, temp_file, params, 0)
     else:
-        last_length = (params[args.prefix + '.' + args.index] - args.timesteps) % args.batchsize + args.timesteps
+        last_length = (params[args.sub_prefix] - args.timesteps) % args.batchsize + args.timesteps
         decompress(args, temp_file, params, last_length)
     # remove temp files
     shutil.rmtree(args.tempdir)

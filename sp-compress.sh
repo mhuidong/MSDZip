@@ -17,15 +17,14 @@ python split_data.py ${input} -n 2
 
 pids=()
 if [ -z "$(ls -A "$WATCH_DIR")" ]; then
-    python compress.py ${prefix}.0 ${prefix}.0.mz --save -i 0 --prefix ${prefix} --gpu 0 &
+    python compress.py ${prefix}.0 ${prefix}.0.mz --save -i 0 --prefix ${prefix} --gpu 0 --sp --layers 5 &
     pids+=($!)
 fi
-
 
 for i in 1; do
     inotifywait -e create --format '%f' "$WATCH_DIR" | while read file; do
         if [ "$file" == ${prefix}".$((i - 1)).pth" ]; then  #"model.$((i - 1)).pth"
-            python compress.py ${prefix}.${i} ${prefix}.${i}.mz --load -i ${i} --prefix ${prefix} --gpu 1
+            python compress.py ${prefix}.${i} ${prefix}.${i}.mz --load -i ${i} --prefix ${prefix} --gpu 1 --sp --layers 5
         fi
     done
 done

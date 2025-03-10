@@ -20,14 +20,14 @@ tar -xvf ${input}
 pids=()
 START_TIME=$(date +%s)
 if [ -z "$(ls -A "$WATCH_DIR")" ]; then
-    python decompress.py ${prefix}.0.mz ${prefix}.0.out --save -i 0 --prefix ${prefix} --gpu 0 & # 并行执行 X 脚本 >
+    python decompress.py ${prefix}.0.mz ${prefix}.0.out --save -i 0 --prefix ${prefix} --gpu 0 --sp --layers 5 & # 并行执行 X 脚本 >
     pids+=($!)
 fi
 #
 for i in 1; do
     inotifywait -e create --format '%f' "$WATCH_DIR" | while read file; do
         if [ "$file" == ${prefix}".$((i - 1)).pth" ]; then  #"model.$((i - 1)).pth"
-            python decompress.py ${prefix}.${i}.mz ${prefix}.${i}.out --load -i ${i} --prefix ${prefix} --gpu 1
+            python decompress.py ${prefix}.${i}.mz ${prefix}.${i}.out --load -i ${i} --prefix ${prefix} --gpu 1 --sp --layers 5
         fi
     done
 done

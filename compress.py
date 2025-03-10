@@ -11,7 +11,7 @@ import arithmeticcoding_fast
 from utils import *
 
 torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = False
 
 def parseArgs(argv):
     parser = argparse.ArgumentParser()
@@ -31,6 +31,7 @@ def parseArgs(argv):
     parser.add_argument('--ffn_dim', type=int, default=4096, help='The dimension of ffn layer.')
     parser.add_argument('--layers', type=int, default=5, help='The number of layers.')
     parser.add_argument('--seed', type=int, default=0, help='Random seeds.')
+    parser.add_argument('--sp', action='store_true', help='Stepwise-parallel')
     parser.add_argument('--save', action='store_true', help='Save the model')
     parser.add_argument('--load', action='store_true', help='Load the model')
     parser.add_argument('--ratio', type=float, default=0.05, help='Pretrain ratio.')
@@ -62,7 +63,7 @@ def compress(args, temp_file, series, train_data, final):
                                       vocab_dim=args.vocab_dim, timesteps=ts).cuda()  # 没有用到vocab_dim
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
 
-    flag = 0
+
     if args.load:
         logging.info('Loading Model!')
         model.load_state_dict(torch.load(args.prefix + '_model/{}.{}.pth'.format(args.prefix, int(args.index)-1)))
@@ -89,10 +90,6 @@ def compress(args, temp_file, series, train_data, final):
             logging.info('Saving Model!')
             torch.save(model.state_dict(), args.prefix + '_model/{}.{}.pth'.format(args.prefix, args.index))
             # torch.save(model.state_dict(), 'modelpath/model.pth')
-
-        # if train_index >= (iter_num * 0.1 * flag):
-        #     logging.info('{:^3.0f}%: {}'.format(10 * flag, loss.item() / np.log(2)))
-        #     flag += 1
     logging.info('Compreesion finished.')
 
     for i in range(bs):
@@ -132,10 +129,14 @@ def main(args):
         filename = os.path.basename(args.input)
         args.prefix = filename.split('.')[0]
 
+    if args.sp:
+        args.sub_prefix = args.prefix + '.' + args.index
+    else:
+        args.sub_prefix = args.prefix
+
     if not args.tempdir:
-        args.tempdir = "{}_bs{}_ts{}_v{}_h{}_f{}_l{}".format(args.prefix+'.'+args.index, args.batchsize, args.timesteps,
-                                                             args.vocab_dim, args.hidden_dim, args.ffn_dim,
-                                                             args.layers)
+        args.tempdir = "{}_bs{}_ts{}_v{}_h{}_f{}_l{}".format(args.sub_prefix, args.batchsize, args.timesteps, args.vocab_dim, args.hidden_dim, args.ffn_dim, args.layers)
+
     if os.path.exists(args.tempdir):
         shutil.rmtree(args.tempdir)
     os.mkdir(args.tempdir)
@@ -147,7 +148,22 @@ def main(args):
         series = np.frombuffer(f.read(), dtype=np.uint8)
     f.close()
 
-    params = eval(open(args.prefix + '.params', 'r').read())
+    if args.sp:
+        params = eval(open(args.prefix + '.params', 'r').read())
+    else:
+        vals = list(set(series))
+        vals.sort()
+        char2id_dict = {str(c): i for (i, c) in enumerate(vals)}
+        id2char_dict = {str(i): c for (i, c) in enumerate(vals)}
+        params = dict()
+        params['char2id_dict'] = char2id_dict
+        params['id2char_dict'] = id2char_dict
+        params[args.sub_prefix] = len(series)
+        with open(args.prefix + '.params', 'w') as f:
+            f.write(str(params))
+        f.close()
+
+
     char2id_dict = params['char2id_dict']
     series = np.array([char2id_dict[str(c)] for c in series])
 
@@ -155,7 +171,6 @@ def main(args):
     train_data = strided_app(series, args.timesteps + 1, 1)
 
     # Stat vocab freq
-
     total_num = len(train_data)  # sentence的个数
     if total_num % args.batchsize == 0:  # 正好够整数个bs
         compress(args, temp_file, series, train_data, None)
@@ -192,7 +207,7 @@ def main(args):
     t2 = time.time()
     f1_size, f2_size = os.stat(args.input).st_size, os.stat(args.output).st_size
     # logging.info('Compressed File Size: {} Bytes'.format(round(f2_size, 5)))
-    # logging.info('Compression Ratio: {}'.format(round(f2_size / f1_size * 8, 5)))
+    logging.info('Compression Ratio: {}'.format(round(f2_size / f1_size * 8, 5)))
     logging.info('Compression Time: {} secs'.format(round(t2 - t1, 5)))
     # logging.info('Peak GPU memory usage: {} KBs'.format(torch.cuda.max_memory_allocated() // 1024))
     logging.info(
