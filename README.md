@@ -23,7 +23,7 @@ bash sp-decompress.sh <file>.mz <file>.mz.out
 
 # Dataset
 | ID  | Name       | Type          | Size (Byte)                                                          | Link                                                                                   |
-|-----|------------|---------------|-------------|----------------------------------------------------------------------------------------|
+|:-----:|:------------:|---------------|-------------|----------------------------------------------------------------------------------------|
 | D1  | Enwik8     | text          | 100000000               | https://mattmahoney.net/dc/enwik8.zip                                                  |
 | D2  | Text8      | text          | 100000000   | https://mattmahoney.net/dc/text8.zip                                                   |
 | D3  | Enwik9     | text          | 1000000000               | https://mattmahoney.net/dc/enwik9.zip                                                  |
