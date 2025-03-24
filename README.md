@@ -10,7 +10,7 @@ This work has been accepted by The ACM Web Conference (WWW '25).
 # Compression
 python compress.py <file> <file>.mz
 # Decompression
-python decompress.py <file>.mz <output>.mz.out
+python decompress.py <file>.mz <file>.mz.out
 ```
 
 ## Stepwise-parallel
