@@ -1,5 +1,5 @@
 # MSDZip
-An general-purpose lossless compressor via Stepwise-parallel and Learning-based Prediction
+A general-purpose lossless compressor via Stepwise-parallel and Learning-based Prediction
 
 # News
 This work has been accepted by The ACM Web Conference (WWW '25).
