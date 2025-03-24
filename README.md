@@ -1,6 +1,9 @@
 # MSDZip
 An general-purpose lossless compressor via Stepwise-parallel and Learning-based Prediction
 
+# News
+This work has been accepted by The ACM Web Conference (WWW '25).
+
 # Running
 ## Regular
 ```
@@ -34,4 +37,5 @@ bash sp-decompress.sh <file>.mz <file>.mz.out
 | D11 | DNACorpus  | genome        | 685597124   | A corpus of DNA sequences from 15 different species                 | https://sweet.ua.pt/pratas/datasets/DNACorpus.zip                                      |
 | D12 | GenoSeq | genome        | 1926041160  | A collection of genomics sequencing dataset with FastQ format       | https://www.ncbi.nlm.nih.gov/sra/ERR7091247                                            |
 
-
+# Contact Us
+Email: mahd@nbjl.nankai.edu.cn
