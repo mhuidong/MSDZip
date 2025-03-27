@@ -1,8 +1,5 @@
-# MSDZip
+# MSDZip (WWW '25)
 A general-purpose lossless compressor via Stepwise-parallel and Learning-based Prediction
-
-# News
-This work has been accepted by The ACM Web Conference (WWW '25).
 
 # Running
 ## Regular
@@ -37,5 +34,6 @@ bash sp-decompress.sh <file>.mz <file>.mz.out
 | D11 | DNACorpus      | genome        | 685597124     | https://sweet.ua.pt/pratas/datasets/DNACorpus.zip                                      |
 | D12 | GenoSeq        | genome        | 1926041160    | https://www.ncbi.nlm.nih.gov/sra/ERR7091247                                            |
 
-# Contact Us
+# Contact us
 Email: mahd@nbjl.nankai.edu.cn
+Nankai-Baidu Joint Laboratory (NBJL)
