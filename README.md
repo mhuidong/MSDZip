@@ -35,5 +35,5 @@ bash sp-decompress.sh <file>.mz <file>.mz.out
 | D12 | GenoSeq        | genome        | 1926041160    | https://www.ncbi.nlm.nih.gov/sra/ERR7091247                                            |
 
 # Contact us
-Email: mahd@nbjl.nankai.edu.cn
+Email: mahd@nbjl.nankai.edu.cn  
 Nankai-Baidu Joint Laboratory (NBJL)
