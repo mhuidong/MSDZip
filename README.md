@@ -1,5 +1,5 @@
-# MSDZip (WWW '25)
-A general-purpose lossless compressor via Stepwise-parallel and Learning-based Prediction
+# [WWW '25] MSDZip
+Universal Lossless Compression for Multi-source Data via Stepwise-parallel and Learning-based Prediction
 
 # Running
 ## Regular
