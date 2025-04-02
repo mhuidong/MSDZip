@@ -21,10 +21,8 @@ class MixedModel(nn.Module):
         self.embedding = torch.nn.Embedding(vocab_size, vocab_dim)
         self.lin = nn.Linear(hidden_dim, vocab_size)
         self.W1 = nn.Parameter(torch.zeros(self.layers, dtype=torch.float64), requires_grad=True)
-        # self.W2 = nn.Parameter(torch.zeros(self.layers, dtype=torch.float64), requires_grad=True)
         self.count = 0
 
-        # ===== pac =====
         torch.nn.init.normal_(self.embedding.weight, 0, 0.01)
         torch.nn.init.normal_(self.lin.weight, 0, 0.01)
         torch.nn.init.normal_(self.lin.bias, 0, 0.01)
@@ -43,36 +41,34 @@ class MixedModel(nn.Module):
 
     def init_token_order(self, x, module, scale):
         bs, seqlen, vlen = x.shape
-        x = x.reshape(bs, seqlen * scale, vlen // scale)        # 这又reshape回去       512, 32, 64
+        x = x.reshape(bs, seqlen * scale, vlen // scale) 
         x_list = list()
         for i in range(seqlen * scale):
             x_list.append(module.forward(x[:, i, :].unsqueeze(1)))
         x = torch.cat(x_list, -1)
         return x
 
-    def forward(self, x):                           # 正常的transformer的forward，计算KQV。训练的时候只训
+    def forward(self, x):
         x = torch.sigmoid(self.embedding(x))
         bs = x.shape[0]
         # ======= MLP =======
-        x = x.reshape(bs, 1, -1)          # 512, 32, 64    512, 8, 256
+        x = x.reshape(bs, 1, -1)
         last_x = x
         if len(self.last) == 0:
             for i, layer in enumerate(self.mlp):
                 if i % 2 == 0:
                     x = self.init_token_order(x, layer, self.timesteps // (pow(self.n_group, i // 2)))
-                    self.last.append(x[:, :, self.vocab_dim * (pow(self.n_group, i // 2)):].detach())     # 存放到last里面 len = 4，去掉第一个vocab
+                    self.last.append(x[:, :, self.vocab_dim * (pow(self.n_group, i // 2)):].detach())
                 else:
-                    # x = layer.forward(x) * torch.sigmoid(self.W1[i // 2]) + last_x * torch.sigmoid(self.W2[i // 2])
                     x = layer.forward(x) * torch.sigmoid(self.W1[i // 2]) + last_x * (1 - torch.sigmoid(self.W1[i // 2]))
                     last_x = x
         else:
             for i, layer in enumerate(self.mlp):
-                if i % 2 == 0:          # 这里full_forward只对新的token进行full_forward，然后去拼接之前的
+                if i % 2 == 0:
                     new_token = layer.forward(x[:, :, -self.vocab_dim * (pow(self.n_group, i // 2)):])
                     x = torch.cat([self.last[i // 2], new_token], dim=-1)
                     self.last[i // 2] = x[:, :, self.vocab_dim * (pow(self.n_group, i // 2)):].detach()
                 else:
-                    # x = layer.forward(x) * torch.sigmoid(self.W1[i // 2]) + last_x * torch.sigmoid(self.W2[i // 2])
                     x = layer.forward(x) * torch.sigmoid(self.W1[i // 2]) + last_x * (1 - torch.sigmoid(self.W1[i // 2]))
                     last_x = x
         x = x.reshape(bs, -1, self.hidden_dim)
@@ -86,17 +82,13 @@ class dense_baens(nn.Module):
         self.B = B
         self.D1 = D1
         self.D2 = D2
-        self.U = nn.Parameter(torch.normal(0, 0.01, (N, D1, D2)), requires_grad=True)  # 5 * 3 * 2
-        self.bias = nn.Parameter(torch.normal(0, 0.01, (N, B, D2)), requires_grad=True)  # 5 * 4 * 2
+        self.U = nn.Parameter(torch.normal(0, 0.01, (N, D1, D2)), requires_grad=True)
+        self.bias = nn.Parameter(torch.normal(0, 0.01, (N, B, D2)), requires_grad=True)
     def forward(self, x):
-        act = torch.bmm(x, self.U)      # 乘w，加b
+        act = torch.bmm(x, self.U)
         act += self.bias
         return act
 
-# BELayer：
-# X reshpae = [bs, branch, vocab_dim]
-# X * [bs, vocab_dim, vocab_dim] + [bs, branch, vocab_dim]
-# X reshape = [bs, 1, branch * vocab_dim]
 class BELayer(torch.nn.Module):
     def __init__(self, branch, vocab_dim, ffn_dim, batch_size, ea=[True, True], trans=False):
         super(BELayer, self).__init__()
@@ -104,14 +96,7 @@ class BELayer(torch.nn.Module):
         self.vocab_dim = vocab_dim
         self.ffn_dim = ffn_dim
         self.batch_size = batch_size
-        # V_map: W=[bs, vocab_dim, vocab_dim], bias=[bs, branch, vocab_dim]
         self.V_map = dense_baens(batch_size, branch, vocab_dim, vocab_dim)
-
-        # https://blog.csdn.net/weixin_39228381/article/details/107939602
-        # LayerNorm(
-        # normalized_shape:传入一个整数，看作list，传入两个整数，对最后两维归一化
-        # eps:归一化加上分母防止除零
-        # LayerNorm elementwise_affine=True的话，包含可学习参数Weight和Bias用于仿射变换，即对输入数据归一化到均值0方差1后，乘以weight并加bias
         self.layernorm1 = torch.nn.LayerNorm(vocab_dim, eps=1e-05, elementwise_affine=ea[0])
         self.layernorm2 = torch.nn.LayerNorm(vocab_dim, eps=1e-05, elementwise_affine=ea[1])
         self.trans = trans
@@ -122,11 +107,11 @@ class BELayer(torch.nn.Module):
         if self.ln1:
             x = self.layernorm1(x)
         skip = x
-        x = self.V_map(x)           # 乘W加B，可学习的参数
-        x = self.layernorm2(x)      # layernorm
+        x = self.V_map(x)
+        x = self.layernorm2(x)
         x = torch.nn.functional.gelu(x)
-        x = (skip + x) / 2          # 这里有个残差
-        x = x.reshape(self.batch_size, 1, self.branch * self.vocab_dim)     # 合并到一起，维度扩增
+        x = (skip + x) / 2
+        x = x.reshape(self.batch_size, 1, self.branch * self.vocab_dim)
         return x
 
 class LinearLayer(torch.nn.Module):
@@ -142,7 +127,6 @@ class LinearLayer(torch.nn.Module):
         torch.nn.init.normal_(self.V_map.weight, 0, 0.01)
         torch.nn.init.normal_(self.V_map.bias, 0, 0.01)
 
-        # self.layernorm1 = torch.nn.LayerNorm(hidden_dim, eps=1e-05, elementwise_affine=ea[0])
         self.layernorm1 = torch.nn.LayerNorm(hidden_dim, eps=1e-05, elementwise_affine=ea[0])
         self.layernorm2 = torch.nn.LayerNorm(out_dim, eps=1e-05, elementwise_affine=ea[1])
         self.ln1 = 1
@@ -155,7 +139,7 @@ class LinearLayer(torch.nn.Module):
         x = self.U_map(x)
         x = torch.nn.functional.gelu(x)
         if self.if_sgu:
-            x = self.sgu(x)     # 512, 1, 8192
+            x = self.sgu(x)
         x = self.V_map(x)
         x = self.layernorm2(x)
         x = torch.nn.functional.gelu(x)
@@ -191,12 +175,12 @@ class SpatialGatingUnit(nn.Module):
         nn.init.constant_(self.spatial_proj.bias, 1.0)
 
     def forward(self, x):
-        u, v = x.chunk(2, dim=-1)  # dim维度分成两份 2 bs seql dim
-        v = self.norm(v)        # 512, 1, 4096
+        u, v = x.chunk(2, dim=-1)
+        v = self.norm(v)
         if self.tiny_attn:
             tn = self.tn(x)
             v = tn + self.spatial_proj(v)
         else:
-            v = self.spatial_proj(v)  # 2 bs seql dim * seql seql
-        out = u * v  # bs seql dim * bs seql dim     = bs seql dim       门控机制?
+            v = self.spatial_proj(v)
+        out = u * v
         return out
