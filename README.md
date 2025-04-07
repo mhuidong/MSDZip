@@ -1,5 +1,7 @@
-# [WWW '25] MSDZip
-Universal Lossless Compression for Multi-source Data via Stepwise-parallel and Learning-based Prediction
+<div align="center">
+<h1>MSDZip (WWW 2025)</h1>
+<h3>Universal Lossless Compression for Multi-source Data via Stepwise-parallel and Learning-based Prediction</h2>
+</div>
 
 # Running
 ## Regular
