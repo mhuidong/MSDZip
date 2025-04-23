@@ -50,6 +50,6 @@ If you are interested in our work, we hope you might consider starring our repos
 # Acknowledgment
 The code is based on [PAC](https://github.com/mynotwo/Faster-and-Stronger-Lossless-Compression-with-Optimized-Autoregressive-Framework) and [Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding). Thanks for these great works.
 
-# Contact us
+# Contact
 Email: mahd@nbjl.nankai.edu.cn  
 Nankai-Baidu Joint Laboratory (NBJL)
