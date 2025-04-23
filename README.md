@@ -1,6 +1,5 @@
 <div align="center">
-<h1>MSDZip (WWW 2025)</h1>
-<h3>Universal Lossless Compression for Multi-source Data via Stepwise-parallel and Learning-based Prediction</h2>
+<h1>[WWW '25] MSDZip: Universal Lossless Compression for Multi-source Data via Stepwise-parallel and Learning-based Prediction</h1>
 </div>
 
 # Running
@@ -35,6 +34,21 @@ bash sp-decompress.sh <file>.mz <file>.mz.out
 | D10 | LJSpeech       | audio         | 293847664     | https://data.keithito.com/data/speech/LJSpeech-1.1.tar.bz2                             |
 | D11 | DNACorpus      | genome        | 685597124     | https://sweet.ua.pt/pratas/datasets/DNACorpus.zip                                      |
 | D12 | GenoSeq        | genome        | 1926041160    | https://www.ncbi.nlm.nih.gov/sra/ERR7091247                                            |
+
+# Citation
+If you are interested in our work, we hope you might consider starring our repository and citing our paper:
+```
+@inproceedings{ma2025msdzip,
+  title={MSDZip: Universal Lossless Compression for Multi-source Data via Stepwise-parallel and Learning-based Prediction},
+  author={Ma, Huidong and Sun, Hui and Yi, Liping and Ding, Yanfeng and Liu, Xiaoguang and Wang, Gang},
+  booktitle={Proceedings of the ACM Web Conference 2025}
+  pages={3543–3551},
+  year={2025}
+}
+```
+
+# Acknowledgment
+The code is based on [PAC](https://github.com/mynotwo/Faster-and-Stronger-Lossless-Compression-with-Optimized-Autoregressive-Framework) and [Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding). Thanks for these great works.
 
 # Contact us
 Email: mahd@nbjl.nankai.edu.cn  
