@@ -41,8 +41,8 @@ If you are interested in our work, we hope you might consider starring our repos
 @inproceedings{ma2025msdzip,
   title={MSDZip: Universal Lossless Compression for Multi-source Data via Stepwise-parallel and Learning-based Prediction},
   author={Ma, Huidong and Sun, Hui and Yi, Liping and Ding, Yanfeng and Liu, Xiaoguang and Wang, Gang},
-  booktitle={Proceedings of the ACM Web Conference 2025},
-  pages={3543–3551},
+  booktitle={Proceedings of the ACM on Web Conference 2025},
+  pages={3543--3551},
   year={2025}
 }
 ```
