@@ -6,17 +6,17 @@
 ## Regular
 ```
 # Compression
-python compress.py <file> <file>.mz
+python compress.py <FILE> <FILE>.mz --prefix <FILENAME>
 # Decompression
-python decompress.py <file>.mz <file>.mz.out
+python decompress.py <FILE>.mz <FILE>.mz.out --prefix <FILENAME>
 ```
 
 ## Stepwise-parallel
 ```
 # Compression
-bash sp-compress.sh <file> <file>.mz
+bash sp-compress.sh <FILE> <FILE>.mz --prefix <FILENAME>
 # Decompression
-bash sp-decompress.sh <file>.mz <file>.mz.out
+bash sp-decompress.sh <FILE>.mz <FILE>.mz.out --prefix <FILENAME>
 ```
 
 # Dataset
