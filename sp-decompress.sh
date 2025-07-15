@@ -3,13 +3,13 @@
 ulimit -n 100000
 input=$1
 output=$2
+prefix=$3
+parallel=${4:-2}
 
-prefix=$(echo "$input" | awk -F/ '{print $NF}' | awk -F. '{print $1}')
+start_time=$(date +%s)
 
 WATCH_DIR=${prefix}_model
 
-
-## 解压缩
 if [ -d "$WATCH_DIR" ]; then
     rm -rf "$WATCH_DIR"
 fi
@@ -18,27 +18,47 @@ mkdir -p "$WATCH_DIR"
 tar -xvf ${input}
 
 pids=()
-START_TIME=$(date +%s)
-if [ -z "$(ls -A "$WATCH_DIR")" ]; then
-    python decompress.py ${prefix}.0.mz ${prefix}.0.out --save -i 0 --prefix ${prefix} --gpu 0 --sp & # 并行执行 X 脚本 >
-    pids+=($!)
-fi
-#
-for i in 1; do
-    inotifywait -e create --format '%f' "$WATCH_DIR" | while read file; do
-        if [ "$file" == ${prefix}".$((i - 1)).pth" ]; then  #"model.$((i - 1)).pth"
-            python decompress.py ${prefix}.${i}.mz ${prefix}.${i}.out --load -i ${i} --prefix ${prefix} --gpu 1 --sp
+# 顺序启动后续任务，每个等待前一个模型文件生成
+for ((i=0;i<parallel;i++)); do
+    {
+        # i=0不需要等待，i>0需要等待前一个模型文件生成
+        if [ $i -gt 0 ]; then
+            while [ ! -f "${WATCH_DIR}/${prefix}.$((i-1)).pth" ]; do
+                sleep 1
+            done 
         fi
-    done
+        
+        # 根据i的值决定参数
+        if [ $i -eq 0 ]; then
+            # 第一个任务只保存模型
+            python decompress.py ${prefix}.${i}.mz ${prefix}.${i}.out --save -i ${i} --prefix ${prefix} --gpu ${i} --sp
+        elif [ $i -eq $((parallel-1)) ]; then
+            # 最后一个任务只加载模型
+            python decompress.py ${prefix}.${i}.mz ${prefix}.${i}.out --load -i ${i} --prefix ${prefix} --gpu ${i} --sp
+        else
+            # 中间任务既保存又加载模型
+            python decompress.py ${prefix}.${i}.mz ${prefix}.${i}.out --save --load -i ${i} --prefix ${prefix} --gpu ${i} --sp
+        fi
+    } &
+    pids+=($!)
 done
+
 for pid in "${pids[@]}"; do
     wait $pid
 done
 
-cat ${prefix}.0.out ${prefix}.1.out > ${output}
+cat_out=""
+for ((j=0;j<parallel;j++)); do
+    cat_out="${cat_out} ${prefix}.${j}.out"
+done
+cat ${cat_out} > ${output}
 
 rm -rf "$WATCH_DIR"
-rm -rf ${prefix}.0.mz
-rm -rf ${prefix}.1.mz
-rm -rf ${prefix}.0.out
-rm -rf ${prefix}.1.out
+for ((k=0;k<parallel;k++)); do
+    rm -rf ${prefix}.${k}.mz
+    rm -rf ${prefix}.${k}.out
+done
+
+end_time=$(date +%s)
+elapsed=$((end_time-start_time))
+echo "Decompression Time (secs): ${elapsed}"

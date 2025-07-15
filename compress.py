@@ -10,6 +10,7 @@ import os
 import compress_model
 import arithmeticcoding_fast
 from utils import *
+from tqdm import tqdm
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -30,6 +31,7 @@ def parseArgs(argv):
     parser.add_argument('--vocab_size', type=int, default=256, help='The size of vocab.')
     parser.add_argument('--hidden_dim', type=int, default=256, help='The dimension of hidden layer.')
     parser.add_argument('--ffn_dim', type=int, default=4096, help='The dimension of ffn layer.')
+    parser.add_argument('--layers', type=int, help='Num of layers')
     parser.add_argument('--seed', type=int, default=0, help='Random seeds.')
     parser.add_argument('--sp', action='store_true', help='Stepwise-parallel')
     parser.add_argument('--save', action='store_true', help='Save the model')
@@ -66,7 +68,7 @@ def compress(args, temp_file, series, train_data, final):
 
     if args.load:
         logging.info('Loading Model!')
-        model.load_state_dict(torch.load(args.prefix + '_model/{}.{}.pth'.format(args.prefix, int(args.index)-1)))
+        model.load_state_dict(torch.load(args.prefix + '_model/{}.{}.pth'.format(args.prefix, int(args.index)-1), weights_only=True))
         # model.load_state_dict(torch.load('modelpath/model.pth'))
     for train_index in range(iter_num):
         model.train()
@@ -90,7 +92,6 @@ def compress(args, temp_file, series, train_data, final):
             logging.info('Saving Model!')
             torch.save(model.state_dict(), args.prefix + '_model/{}.{}.pth'.format(args.prefix, args.index))
             # torch.save(model.state_dict(), 'modelpath/model.pth')
-    logging.info('Compreesion finished.')
 
     for i in range(bs):
         enc[i].finish()
@@ -98,7 +99,6 @@ def compress(args, temp_file, series, train_data, final):
         f[i].close()
 
     if final is not None:
-        logging.info("last series")
         f = open(temp_file + '.last', 'wb')
         bitout = arithmeticcoding_fast.BitOutputStream(f)
         enc = arithmeticcoding_fast.ArithmeticEncoder(32, bitout)
@@ -108,7 +108,6 @@ def compress(args, temp_file, series, train_data, final):
 
         for j in range(len(final)):
             enc.write(cumul, final[j])
-        logging.info("Last encode part don't need inference.")
 
         enc.finish()
         bitout.close()
@@ -125,7 +124,8 @@ def main(args):
     torch.cuda.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
 
-    args.layers = int(math.log2(args.timesteps) + 1)
+    if args.layers is None:
+        args.layers = int(math.log2(args.timesteps) + 1)
 
     if not args.prefix:
         filename = os.path.basename(args.input)
@@ -150,24 +150,12 @@ def main(args):
         series = np.frombuffer(f.read(), dtype=np.uint8)
     f.close()
 
-    if args.sp:
-        params = eval(open(args.prefix + '.params', 'r').read())
-    else:
-        vals = list(set(series))
-        vals.sort()
-        char2id_dict = {str(c): i for (i, c) in enumerate(vals)}
-        id2char_dict = {str(i): c for (i, c) in enumerate(vals)}
+    if not args.sp:
         params = dict()
-        params['char2id_dict'] = char2id_dict
-        params['id2char_dict'] = id2char_dict
         params[args.sub_prefix] = len(series)
         with open(args.prefix + '.params', 'w') as f:
             f.write(str(params))
         f.close()
-
-
-    char2id_dict = params['char2id_dict']
-    series = np.array([char2id_dict[str(c)] for c in series])
 
     # Generating training data
     train_data = strided_app(series, args.timesteps + 1, 1)
@@ -208,15 +196,7 @@ def main(args):
     shutil.rmtree(args.tempdir)
     t2 = time.time()
     f1_size, f2_size = os.stat(args.input).st_size, os.stat(args.output).st_size
-    # logging.info('Compressed File Size: {} Bytes'.format(round(f2_size, 5)))
-    logging.info('Compression Ratio: {}'.format(round(f2_size / f1_size * 8, 5)))
-    logging.info('Compression Time: {} secs'.format(round(t2 - t1, 5)))
-    # logging.info('Peak GPU memory usage: {} KBs'.format(torch.cuda.max_memory_allocated() // 1024))
-    logging.info(
-        'The params are:\nbatchsize\tlr\thidden_dim\tvocab_dim\tffn_dim\tlayers\ttimesteps\tvocab_size\n{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}'.format(
-            args.batchsize, args.lr, args.hidden_dim, args.vocab_dim, args.ffn_dim, args.layers,
-            args.timesteps, args.vocab_size))
-
+    logging.info('{} has been compressed, with a compression ratio of {} bits/base, in {} secs.'.format(args.sub_prefix, round(f2_size / f1_size * 8, 3), int(t2 - t1)))
 
 def setupLogging(debug=False):
     logLevel = logging.DEBUG if debug else logging.INFO
@@ -230,7 +210,6 @@ def run(argv):
     args = parseArgs(argv)
     starttime = time.time()
     main(args)
-    logging.info("Finished in %0.2f seconds." % (time.time() - starttime))
 
 
 if __name__ == '__main__':

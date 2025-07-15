@@ -31,6 +31,7 @@ def parseArgs(argv):
     parser.add_argument('--vocab_size', type=int, default=256, help='The size of vocab.')
     parser.add_argument('--hidden_dim', type=int, default=256, help='The dimension of hidden layer.')
     parser.add_argument('--ffn_dim', type=int, default=4096, help='The dimension of ffn layer.')
+    parser.add_argument('--layers', type=int, help='Num of layers')
     parser.add_argument('--seed', type=int, default=0, help='Random seeds.')
     parser.add_argument('--sp', action='store_true', help='Stepwise-parallel')
     parser.add_argument('--save', action='store_true', help='Save the model')
@@ -41,7 +42,7 @@ def parseArgs(argv):
 
 def decompress(args, temp_file, info, last):
     bs, ts = args.batchsize, args.timesteps
-    len_series, id2char_dict, vocab_size = info[args.sub_prefix], info['id2char_dict'], args.vocab_size
+    len_series, vocab_size = info[args.sub_prefix], args.vocab_size
 
 
     iter_num = (len_series - ts) // bs      # 10439
@@ -70,7 +71,7 @@ def decompress(args, temp_file, info, last):
     if args.load:
         logging.info('Loading Model!')
         # model.load_state_dict(torch.load(args.tempfile + '/{}.{}.pth'.format(args.prefix, int(args.index) - 1)))
-        model.load_state_dict(torch.load(args.prefix + '_model/{}.{}.pth'.format(args.prefix, int(args.index)-1)))
+        model.load_state_dict(torch.load(args.prefix + '_model/{}.{}.pth'.format(args.prefix, int(args.index)-1), weights_only=True))
     for train_index in range(iter_num - ts):
         model.train()
         train_batch = torch.LongTensor(series_2d[:, train_index:train_index + ts]).cuda()
@@ -100,12 +101,10 @@ def decompress(args, temp_file, info, last):
         # if (train_index+1) >= ((iter_num - ts)*0.1*flag):
         #     logging.info('{:^3.0f}% : {}'.format(10*flag, train_loss.item() / np.log(2)))
         #     flag += 1
-    logging.info('Decompression finished.')
     # torch.save(model.state_dict(), 'model.pth')
 
-    series_2d = series_2d.reshape(-1)
     fout = open(args.output, 'wb')
-    fout.write(bytearray([id2char_dict[str(s)] for s in series_2d]))
+    fout.write(bytearray(series_2d.reshape(-1).tolist()))
 
     for i in range(bs):
         bitin[i].close()
@@ -122,9 +121,8 @@ def decompress(args, temp_file, info, last):
 
         for j in range(last):
             series[j] = dec.read(cumul, vocab_size)
-        print("Last decode part don't need inference.")
         # fout.write(decode_tokens(series))
-        fout.write(bytearray(id2char_dict[str(s)] for s in series))
+        fout.write(bytearray(series.tolist()))
         bitin.close()
         f.close()
     return
@@ -138,7 +136,8 @@ def main(args):
     torch.cuda.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
 
-    args.layers = int(math.log2(args.timesteps) + 1)
+    if args.layers is None:
+        args.layers = int(math.log2(args.timesteps) + 1)
 
     if args.prefix is None:
         filename = os.path.basename(args.input)
@@ -184,7 +183,7 @@ def main(args):
     # remove temp files
     shutil.rmtree(args.tempdir)
     t2 = time.time()
-    print('Decompression Time: {} secs'.format(round(t2-t1, 5)))
+    logging.info('{} has been decompressed, in {} secs.'.format(args.sub_prefix, int(t2 - t1)))
     # print('Peak GPU memory usage: {} KBs'.format(torch.cuda.max_memory_allocated()//1024))
 
 def setupLogging(debug=False):
@@ -198,7 +197,6 @@ def run(argv):
     args = parseArgs(argv)
     starttime = time.time()
     main(args)
-    logging.info("Finished in %0.2f seconds." % (time.time() - starttime))
 
 if __name__ == '__main__':
     run(sys.argv[1:])

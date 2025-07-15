@@ -3,8 +3,10 @@
 ulimit -n 100000
 input=$1
 output=$2
+prefix=$3
+parallel=${4:-2}
 
-prefix=$(echo "$input" | awk -F/ '{print $NF}' | awk -F. '{print $1}')
+start_time=$(date +%s)
 
 WATCH_DIR=${prefix}_model
 
@@ -13,31 +15,55 @@ if [ -d "$WATCH_DIR" ]; then
 fi
 mkdir -p "$WATCH_DIR"
 
-python split_data.py ${input} -n 2
+python split_data.py ${input} -n ${parallel}
 
 pids=()
-if [ -z "$(ls -A "$WATCH_DIR")" ]; then
-    python compress.py ${prefix}.0 ${prefix}.0.mz --save -i 0 --prefix ${prefix} --gpu 0 --sp &
-    pids+=($!)
-fi
-
-for i in 1; do
-    inotifywait -e create --format '%f' "$WATCH_DIR" | while read file; do
-        if [ "$file" == ${prefix}".$((i - 1)).pth" ]; then  #"model.$((i - 1)).pth"
-            python compress.py ${prefix}.${i} ${prefix}.${i}.mz --load -i ${i} --prefix ${prefix} --gpu 1 --sp
+# 顺序启动后续任务，每个等待前一个模型文件生成
+for ((i=0;i<parallel;i++)); do
+    {
+        # i=0不需要等待，i>0需要等待前一个模型文件生成
+        if [ $i -gt 0 ]; then
+            while [ ! -f "${WATCH_DIR}/${prefix}.$((i-1)).pth" ]; do
+                sleep 1
+            done 
         fi
-    done
+        
+        # 根据i的值决定参数
+        if [ $i -eq 0 ]; then
+            # 第一个任务只保存模型
+            python compress.py ${prefix}.${i} ${prefix}.${i}.mz --save -i ${i} --prefix ${prefix} --gpu ${i} --sp
+        elif [ $i -eq $((parallel-1)) ]; then
+            # 最后一个任务只加载模型
+            python compress.py ${prefix}.${i} ${prefix}.${i}.mz --load -i ${i} --prefix ${prefix} --gpu ${i} --sp
+        else
+            # 中间任务既保存又加载模型
+            python compress.py ${prefix}.${i} ${prefix}.${i}.mz --save --load -i ${i} --prefix ${prefix} --gpu ${i} --sp
+        fi
+    } &
+    pids+=($!)
 done
+
 
 for pid in "${pids[@]}"; do
     wait $pid
 done
 
-tar -czf ${output} ${prefix}.0.mz ${prefix}.1.mz
+mz_files=""
+for ((j=0;j<parallel;j++)); do
+    mz_files="${mz_files} ${prefix}.${j}.mz"
+done
+tar -czf ${output} $mz_files
 
 rm -rf ${WATCH_DIR}
-rm -rf ${prefix}.0
-rm -rf ${prefix}.1
-rm -rf ${prefix}.0.mz
-rm -rf ${prefix}.1.mz
+for ((k=0;k<parallel;k++)); do
+    rm -rf ${prefix}.${k}
+    rm -rf ${prefix}.${k}.mz
+done
 
+input_size=$(stat -c %s "$input")
+output_size=$(stat -c %s "$output")
+ratio=$(awk "BEGIN{printf \"%.3f\", (${output_size}/${input_size})*8}")
+end_time=$(date +%s)
+elapsed=$((end_time-start_time))
+echo "Compression Ratio (bits/base): $ratio"
+echo "Compression Time (secs): ${elapsed}"
