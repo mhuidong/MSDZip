@@ -10,6 +10,11 @@ python compress.py <file> <file>.mz <prefix>
 # Decompression
 python decompress.py <file>.mz <file>.mz.out <prefix>
 ```
+For example
+```
+python compress.py enwik6 enwik6.mz enwik6
+python decompress.py enwik6.mz enwik6.mz.out enwik6
+```
 
 ## Stepwise-parallel
 ```
