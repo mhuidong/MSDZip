@@ -6,14 +6,14 @@
 ## Regular
 ```
 # Compression
-python compress.py <file> <file>.mz <prefix>
+python compress.py <file> <file>.mz --prefix <prefix>
 # Decompression
-python decompress.py <file>.mz <file>.mz.out <prefix>
+python decompress.py <file>.mz <file>.mz.out --prefix <prefix>
 ```
 For example
 ```
-python compress.py enwik6 enwik6.mz enwik6
-python decompress.py enwik6.mz enwik6.mz.out enwik6
+python compress.py enwik6 enwik6.mz --prefix enwik6
+python decompress.py enwik6.mz enwik6.mz.out --prefix enwik6
 ```
 
 ## Stepwise-parallel
