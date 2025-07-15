@@ -25,8 +25,8 @@ bash sp-decompress.sh <file>.mz <file>.mz.out <prefix> <parallel>
 ```
 For example
 ```
-bash sp-compress.sh enwik6 enwik6.mz enwik6 4
-bash sp-decompress.sh enwik6.mz enwik6.mz.out enwik6 4
+bash sp-compress.sh enwik6 enwik6.mz enwik6 2
+bash sp-decompress.sh enwik6.mz enwik6.mz.out enwik6 2
 ```
 
 # Dataset
