@@ -1,5 +1,6 @@
 <div align="center">
 <h1>[WWW '25] MSDZip: Universal Lossless Compression for Multi-source Data via Stepwise-parallel and Learning-based Prediction</h1>
+<h3>Huidong Ma, Hui Sun, Liping Yi, Yanfeng Ding, Xiaoguang Liu, Gang Wang</h3>
 </div>
 
 # Running
@@ -46,7 +47,7 @@ bash sp-decompress.sh enwik6.mz enwik6.mz.out enwik6 2
 | D12 | GenoSeq        | genome        | 1926041160    | https://www.ncbi.nlm.nih.gov/sra/ERR7091247                                            |
 
 # Citation
-If you are interested in our work, we hope you might consider starring our repository and citing our paper:
+If you are interested in our work, we hope you might consider starring our repository and citing our [paper](https://dl.acm.org/doi/10.1145/3696410.3714655):
 ```
 @inproceedings{ma2025msdzip,
   title={MSDZip: Universal Lossless Compression for Multi-source Data via Stepwise-parallel and Learning-based Prediction},
