@@ -65,33 +65,31 @@ def compress(args, temp_file, series, train_data, final):
                                       vocab_dim=args.vocab_dim, timesteps=ts).cuda()  # 没有用到vocab_dim
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
 
+    if iter_num > 0:
+        if args.load:
+            logging.info('Loading Model!')
+            model.load_state_dict(torch.load(args.prefix + '_model/{}.{}.pth'.format(args.prefix, int(args.index)-1), weights_only=True))
+        for train_index in range(iter_num):
+            model.train()
+            train_batch = train_data[ind, :]
+            y = train_batch[:, -1]
+            train_batch = torch.from_numpy(train_batch).cuda().long()  # 128 * 33
+            logits = model.forward(train_batch[:, :-1])
+            loss = torch.nn.functional.cross_entropy(logits[:, -1, :], train_batch[:, -1])
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+            prob = logits[:, -1, :]
+            prob = F.softmax(prob, dim=1).detach().cpu().numpy()
+            cumul_batch[:, 1:] = np.cumsum(prob * 10000000 + 1, axis=1)
 
-    if args.load:
-        logging.info('Loading Model!')
-        model.load_state_dict(torch.load(args.prefix + '_model/{}.{}.pth'.format(args.prefix, int(args.index)-1), weights_only=True))
-        # model.load_state_dict(torch.load('modelpath/model.pth'))
-    for train_index in range(iter_num):
-        model.train()
-        train_batch = train_data[ind, :]
-        y = train_batch[:, -1]
-        train_batch = torch.from_numpy(train_batch).cuda().long()  # 128 * 33
-        logits = model.forward(train_batch[:, :-1])
-        loss = torch.nn.functional.cross_entropy(logits[:, -1, :], train_batch[:, -1])
-        loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
-        prob = logits[:, -1, :]
-        prob = F.softmax(prob, dim=1).detach().cpu().numpy()
-        cumul_batch[:, 1:] = np.cumsum(prob * 10000000 + 1, axis=1)
+            for i in range(bs):
+                enc[i].write(cumul_batch[i, :], y[i])
+            ind += 1
 
-        for i in range(bs):
-            enc[i].write(cumul_batch[i, :], y[i])
-        ind += 1
-
-        if train_index == int(iter_num * args.ratio) and args.save:
-            logging.info('Saving Model!')
-            torch.save(model.state_dict(), args.prefix + '_model/{}.{}.pth'.format(args.prefix, args.index))
-            # torch.save(model.state_dict(), 'modelpath/model.pth')
+            if train_index == int(iter_num * args.ratio) and args.save:
+                logging.info('Saving Model!')
+                torch.save(model.state_dict(), args.prefix + '_model/{}.{}.pth'.format(args.prefix, args.index))
 
     for i in range(bs):
         enc[i].finish()
@@ -108,6 +106,12 @@ def compress(args, temp_file, series, train_data, final):
 
         for j in range(len(final)):
             enc.write(cumul, final[j])
+        
+        # Avoid the bug where the program waits indefinitely due to the absence of an error-reporting model.
+        if args.save:
+            with open(args.prefix + '_model/{}.{}.pth'.format(args.prefix, args.index), 'w') as f_model:
+                f_model.write('')
+            f_model.close()
 
         enc.finish()
         bitout.close()

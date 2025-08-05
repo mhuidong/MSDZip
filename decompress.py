@@ -67,41 +67,34 @@ def decompress(args, temp_file, info, last):
     model = compress_model.MixedModel(batchsize=args.batchsize, layers=args.layers, hidden_dim=args.hidden_dim, ffn_dim=args.ffn_dim, vocab_size=vocab_size, vocab_dim=args.vocab_dim, timesteps=ts).cuda()   #没有用到vocab_dim
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
 
-    flag = 0
-    if args.load:
-        logging.info('Loading Model!')
-        # model.load_state_dict(torch.load(args.tempfile + '/{}.{}.pth'.format(args.prefix, int(args.index) - 1)))
-        model.load_state_dict(torch.load(args.prefix + '_model/{}.{}.pth'.format(args.prefix, int(args.index)-1), weights_only=True))
-    for train_index in range(iter_num - ts):
-        model.train()
-        train_batch = torch.LongTensor(series_2d[:, train_index:train_index + ts]).cuda()
-        logits = model.forward(train_batch)
-        # print(train_batch, train_batch.shape)
-        # np.save('decomp.npy', train_batch.cpu())
-        prob = logits[:, -1, :]
-        prob = F.softmax(prob, dim=1).detach().cpu().numpy()
-        cumul_batch[:, 1:] = np.cumsum(prob * 10000000 + 1, axis=1)
+    if iter_num - ts > 0:
+        if args.load:
+            logging.info('Loading Model!')
+            model.load_state_dict(torch.load(args.prefix + '_model/{}.{}.pth'.format(args.prefix, int(args.index)-1), weights_only=True))
+        for train_index in range(iter_num - ts):
+            model.train()
+            train_batch = torch.LongTensor(series_2d[:, train_index:train_index + ts]).cuda()
+            logits = model.forward(train_batch)
+            # print(train_batch, train_batch.shape)
+            # np.save('decomp.npy', train_batch.cpu())
+            prob = logits[:, -1, :]
+            prob = F.softmax(prob, dim=1).detach().cpu().numpy()
+            cumul_batch[:, 1:] = np.cumsum(prob * 10000000 + 1, axis=1)
 
-        # Decode with Arithmetic Encoder
-        for i in range(bs):
-            series_2d[i, train_index + ts] = dec[i].read(cumul_batch[i, :], vocab_size)
+            # Decode with Arithmetic Encoder
+            for i in range(bs):
+                series_2d[i, train_index + ts] = dec[i].read(cumul_batch[i, :], vocab_size)
 
-        logits = logits.transpose(1, 2)
-        label = torch.from_numpy(series_2d[:, train_index + 1:train_index + ts + 1]).cuda()
-        train_loss = F.cross_entropy(logits[:, :, -1], label[:, -1].long())
-        train_loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
+            logits = logits.transpose(1, 2)
+            label = torch.from_numpy(series_2d[:, train_index + 1:train_index + ts + 1]).cuda()
+            train_loss = F.cross_entropy(logits[:, :, -1], label[:, -1].long())
+            train_loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
 
-        if train_index == int((iter_num - ts) * args.ratio) and args.save:
-            logging.info('Saving Model!')
-            # torch.save(model.state_dict(), args.tempfile+'/{}.{}.pth'.format(args.prefix, args.index))
-            torch.save(model.state_dict(), args.prefix + '_model/{}.{}.pth'.format(args.prefix, args.index))
-
-        # if (train_index+1) >= ((iter_num - ts)*0.1*flag):
-        #     logging.info('{:^3.0f}% : {}'.format(10*flag, train_loss.item() / np.log(2)))
-        #     flag += 1
-    # torch.save(model.state_dict(), 'model.pth')
+            if train_index == int((iter_num - ts) * args.ratio) and args.save:
+                logging.info('Saving Model!')
+                torch.save(model.state_dict(), args.prefix + '_model/{}.{}.pth'.format(args.prefix, args.index))
 
     fout = open(args.output, 'wb')
     fout.write(bytearray(series_2d.reshape(-1).tolist()))
@@ -121,8 +114,15 @@ def decompress(args, temp_file, info, last):
 
         for j in range(last):
             series[j] = dec.read(cumul, vocab_size)
-        # fout.write(decode_tokens(series))
         fout.write(bytearray(series.tolist()))
+
+        # Avoid the bug where the program waits indefinitely due to the absence of an error-reporting model.
+        if args.save:
+            with open(args.prefix + '_model/{}.{}.pth'.format(args.prefix, args.index), 'w') as f_model:
+                f_model.write('')
+            f_model.close()
+
+
         bitin.close()
         f.close()
     return

@@ -31,13 +31,13 @@ for ((i=0;i<parallel;i++)); do
         # 根据i的值决定参数
         if [ $i -eq 0 ]; then
             # 第一个任务只保存模型
-            python decompress.py ${prefix}.${i}.mz ${prefix}.${i}.out --save -i ${i} --prefix ${prefix} --gpu ${i} --sp
+            python decompress.py ${prefix}.${i}.mz ${prefix}.${i}.out --save -i ${i} --prefix ${prefix} --sp
         elif [ $i -eq $((parallel-1)) ]; then
             # 最后一个任务只加载模型
-            python decompress.py ${prefix}.${i}.mz ${prefix}.${i}.out --load -i ${i} --prefix ${prefix} --gpu ${i} --sp
+            python decompress.py ${prefix}.${i}.mz ${prefix}.${i}.out --load -i ${i} --prefix ${prefix} --sp
         else
             # 中间任务既保存又加载模型
-            python decompress.py ${prefix}.${i}.mz ${prefix}.${i}.out --save --load -i ${i} --prefix ${prefix} --gpu ${i} --sp
+            python decompress.py ${prefix}.${i}.mz ${prefix}.${i}.out --save --load -i ${i} --prefix ${prefix} --sp
         fi
     } &
     pids+=($!)
